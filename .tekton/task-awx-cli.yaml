@@ -1,0 +1,62 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: awx-cli
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/categories: CLI
+    tekton.dev/tags: ansible, cli
+    tekton.dev/displayName: "Ansible Controller cli"
+    tekton.dev/platforms: "linux/amd64"
+spec:
+  description: >-
+    awx-cli task simplifies starting jobs, workflow jobs,
+    manage users, projects etc.
+
+    Ansible Controller (*AWX* is upstream to Controller) is a web-based solution 
+    that makes Ansible even more easy to use for IT teams of all kinds, 
+    It provides the awx-cli command line tool that simplifies the tasks of starting jobs, 
+    workflow jobs, manage users, projects etc.
+  params:
+    - name: ARGS
+      description: The arguments to pass to awx command
+      type: array
+      default:
+        - "--help"
+    - name: controller-secret
+      description: The Ansible Controller secret with credentials
+      type: string
+      default: "controller-credentials"
+  steps:
+    - name: tower-cli
+      image: quay.io/jveverka/awx-cli@sha256:9f0bab98cb81eb149b16a4973129d593a0f0c14e3e98ca11aac5e19e2333bd79
+      # command: ["/usr/local/bin/awx"]
+      args:
+        - "$(params.ARGS)"
+      env:
+        - name: CONTROLLER_HOST
+          valueFrom:
+            secretKeyRef:
+              name: $(params.controller-secret)
+              key: CONTROLLER_HOST
+        # Either CONTROLLER_USERNAME & CONTROLLER_PASSWORD OR CONTROLLER_OAUTH_TOKEN must be defined!
+        - name: CONTROLLER_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: $(params.controller-secret)
+              key: CONTROLLER_PASSWORD
+              optional: true
+        - name: CONTROLLER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: $(params.controller-secret)
+              key: CONTROLLER_PASSWORD
+              optional: true
+        - name: CONTROLLER_OAUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: $(params.controller-secret)
+              key: CONTROLLER_OAUTH_TOKEN
+              optional: true
