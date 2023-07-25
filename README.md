@@ -2,31 +2,49 @@
 
 https://redhat-scholars.github.io/rhods-lp-workshop/rhods-lp-workshop/index.html
 
-## Extend Pipeline to AAP
+## Extend Pipeline to deploy model to Edge Servers using AAP
 
-Image can be deployed outside of OpenShift to Edge devices. 
-Here are the steps to extend pipeline to do that.
+This extension edit pipeline to:
+- Push image to external registry
+- Run Ansible Automation via Ansible Controller API.
 
-- Authenticate default Service Account to push to registry
-  - Create robot account on quay.io and download as k8s secret
-  - Create secret in OCP
-  - Link secret with SA pipeline
-    - `oc secrets link pipeline secret-name --for=pull,mount`
-- Push image to external registry (quay.io in this example)
-  - Edit PipelineRun to include
-- Create Secret with Ansible Controller credentials, see [this example](./deploy/OpenShift/secret.template.yml).
+### Prerequisites
+
+- OpenShift with this application deployed, including pipeline
+- Write access to Container registry
+- Ansible Automation Controller with Job Template to be used
+  - Create Ansible Controller Project, e.g from [this git repo](https://github.com/jwerak/ansible-demos.git)
+    - ![Alt text](img/aap-project.png)
+  - Create Job Template in Ansible Controller
+    - ![Alt text](img/aap-job-template.png)
+
+### Setup
+
+- Download Credentials to Container registry and assign it to the pipeline service account
+  - e.g. create robot account for quay.io repository
   - `oc apply -f secret.yml`
+  - `oc secrets link pipeline secret-name --for=pull,mount`
+- Create Secret with credentials to Ansible Controller
+  - `oc create secret generic controller-credentials --from-literal=CONTROLLER_HOST=https://student1.sr8vq.example.opentlc.com --from-literal=CONTROLLER_OAUTH_TOKEN=secret-token`
+- Create a tekton task to call Ansible Controller API
+  - `oc apply -f ./tekton/task-awx-cli.yaml`
 
-## Next steps
+### Update pipeline
 
-- implement deployment to edge device via AAP
-  - Create AAP Job Template to deploy image to RHEL Edge device
-- Update pipeline to:
-  - copy image to quay
-  - call AAP to deploy image to edge
+The updated pipeline structure:
+![Alt text](img/pipeline.png)
 
-### Creating pipeline for AAP
+Add parameters to pipeline:
+- PUBLIC_IMAGE_NAME
+- AAP_JOB_TEMPLATE_NAME
+- AAP_SECRET
 
-- Add pipeline to project repo
-- Add task to connect to AAP
-- Add Secret to connect to AAP
+![Alt text](img/pipeline-params.png)
+
+Add *skopeo-copy* task to copy image to remote repository
+
+![Alt text](img/skopeo-copy-task.png)
+
+Add *aap-job-template-runner* task
+
+![Alt text](img/tekton-aap-job-template.png)
